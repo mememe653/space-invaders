@@ -1,10 +1,89 @@
 #include <iostream>
+#include <vector>
 #include <SDL.h>
 #include <SDL_image.h>
 
+const int SCREEN_WIDTH = 2048;
+const int SCREEN_HEIGHT = 1024;
 
-const int SCREEN_WIDTH = 1280;
-const int SCREEN_HEIGHT = 720;
+
+class Alien {
+private:
+	const int moveAmount = 20;
+	SDL_Surface* img1;
+	SDL_Surface* img2;
+	SDL_Surface* currentImg;
+	int x, y;
+
+public:
+	static const int w = 128;
+	static const int h = 96;
+
+public:
+	Alien(SDL_Surface* img1, SDL_Surface* img2, int x, int y)
+		: img1(img1), img2(img2), x(x), y(y) {
+		this->currentImg = img1;
+	}
+
+	void moveRight() {
+		this->x += moveAmount;
+		this->currentImg = currentImg == img1 ? img2 : img1;
+	}
+
+	void moveLeft() {
+		this->x -= moveAmount;
+		this->currentImg = currentImg == img1 ? img2 : img1;
+	}
+
+	void draw(SDL_Window* window, SDL_Surface* winSurface) {
+		SDL_Rect dest;
+		dest.x = this->x;
+		dest.y = this->y;
+		SDL_BlitSurface(this->currentImg, nullptr, winSurface, &dest);
+		SDL_UpdateWindowSurface(window);
+	}
+};
+
+
+class Aliens {
+private:
+	const int numRows = 5;
+	const int numCols = 11;
+	std::vector<Alien> aliens;
+
+public:
+	Aliens() {
+		SDL_Surface* img1a = IMG_Load("resources\\alien1_a.png");
+		SDL_Surface* img1b = IMG_Load("resources\\alien1_b.png");
+		SDL_Surface* img2a = IMG_Load("resources\\alien2_a.png");
+		SDL_Surface* img2b = IMG_Load("resources\\alien2_b.png");
+		SDL_Surface* img3a = IMG_Load("resources\\alien3_a.png");
+		SDL_Surface* img3b = IMG_Load("resources\\alien3_b.png");
+
+		for (int i = 0; i < numCols; i++) {
+			aliens.push_back(Alien(img1a, img1b, i * Alien::w, 0));
+		}
+		for (int i = 0; i < numCols; i++) {
+			aliens.push_back(Alien(img2a, img2b, i * Alien::w, Alien::h));
+		}
+		for (int i = 0; i < numCols; i++) {
+			aliens.push_back(Alien(img2a, img2b, i * Alien::w, 2 * Alien::h));
+		}
+		for (int i = 0; i < numCols; i++) {
+			aliens.push_back(Alien(img3a, img3b, i * Alien::w, 3 * Alien::h));
+		}
+		for (int i = 0; i < numCols; i++) {
+			aliens.push_back(Alien(img3a, img3b, i * Alien::w, 4 * Alien::h));
+		}
+	}
+
+	void draw(SDL_Window* window, SDL_Surface* winSurface) {
+		for (Alien& alien : aliens) {
+			alien.draw(window, winSurface);
+		}
+	}
+};
+
 
 class Player {
 private:
@@ -81,6 +160,9 @@ int main(int argc, char** args) {
 
 	SDL_FillRect(winSurface, nullptr, SDL_MapRGB(winSurface->format, 0, 0, 0));
 	SDL_UpdateWindowSurface(window);
+
+	Aliens aliens;
+	aliens.draw(window, winSurface);
 
 	Player player;
 	player.draw(window, winSurface);
