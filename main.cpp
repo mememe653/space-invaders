@@ -7,22 +7,32 @@ const int SCREEN_WIDTH = 2048;
 const int SCREEN_HEIGHT = 1024;
 
 
+enum Direction {
+	Left,
+	Right
+};
+
+
 class Alien {
 private:
-	const int moveAmount = 20;
 	SDL_Surface* img1;
 	SDL_Surface* img2;
 	SDL_Surface* currentImg;
-	int x, y;
 
 public:
+	int x, y;
 	static const int w = 128;
 	static const int h = 96;
+	static const int moveAmount = 20;
 
 public:
 	Alien(SDL_Surface* img1, SDL_Surface* img2, int x, int y)
 		: img1(img1), img2(img2), x(x), y(y) {
 		this->currentImg = img1;
+	}
+
+	void toggleImage() {
+		this->currentImg = currentImg == img1 ? img2 : img1;
 	}
 
 	void moveRight() {
@@ -32,6 +42,11 @@ public:
 
 	void moveLeft() {
 		this->x -= moveAmount;
+		this->currentImg = currentImg == img1 ? img2 : img1;
+	}
+
+	void moveDown() {
+		this->y += moveAmount;
 		this->currentImg = currentImg == img1 ? img2 : img1;
 	}
 
@@ -45,10 +60,93 @@ public:
 };
 
 
+class MoveDirection {
+protected:
+	Alien* alien;
+	int moveAmount;
+
+public:
+	virtual bool move(const int moveAmount) = 0;
+	virtual void undoMove() = 0;
+
+	virtual void setAlien(Alien* alien) {
+		this->alien = alien;
+	}
+};
+
+
+class MoveLeft : public MoveDirection {
+public:
+	virtual bool move(const int moveAmount) override {
+		if (alien->x - moveAmount < 0) {
+			return false;
+		}
+		else {
+			this->moveAmount = moveAmount;
+			alien->x -= moveAmount;
+			alien->toggleImage();
+			return true;
+		}
+	}
+
+	virtual void undoMove() override {
+		alien->x += this->moveAmount;
+		alien->toggleImage();
+	}
+};
+
+
+class MoveRight : public MoveDirection {
+public:
+	virtual bool move(const int moveAmount) override {
+		if (alien->x + Alien::w + moveAmount > SCREEN_WIDTH) {
+			return false;
+		}
+		else {
+			this->moveAmount = moveAmount;
+			alien->x += moveAmount;
+			alien->toggleImage();
+			return true;
+		}
+	}
+
+	virtual void undoMove() override {
+		alien->x -= this->moveAmount;
+		alien->toggleImage();
+	}
+};
+
+
+class MoveDown : public MoveDirection {
+public:
+	virtual bool move(const int moveAmount) override {
+		if (alien->y + Alien::h + moveAmount > SCREEN_HEIGHT) {
+			return false;
+		}
+		else {
+			this->moveAmount = moveAmount;
+			alien->y += moveAmount;
+			alien->toggleImage();
+			return true;
+		}
+	}
+
+	virtual void undoMove() override {
+		alien->y -= this->moveAmount;
+		alien->toggleImage();
+	}
+};
+
+
 class Aliens {
 private:
 	const int numRows = 5;
 	const int numCols = 11;
+	int moveIdx = 0;
+	MoveLeft leftMover;
+	MoveRight rightMover;
+	MoveDown downMover;
+	MoveDirection* movers[4] = { &rightMover, &downMover, &leftMover, &downMover };
 	std::vector<Alien> aliens;
 
 public:
@@ -75,6 +173,35 @@ public:
 		for (int i = 0; i < numCols; i++) {
 			aliens.push_back(Alien(img3a, img3b, i * Alien::w, 4 * Alien::h));
 		}
+	}
+
+	bool move() {
+		for (int i = 0; i < 2; i++) {
+			bool moveSuccess;
+			MoveDirection* mover = movers[moveIdx];
+			for (int i = 0; i < aliens.size(); i++) {
+				mover->setAlien(&aliens[i]);
+				moveSuccess = mover->move(Alien::moveAmount);
+				if (!moveSuccess) {
+					for (int j = 0; j < i; j++) {
+						mover->setAlien(&aliens[j]);
+						mover->undoMove();
+					}
+					break;
+				}
+			}
+			if (moveSuccess) {
+				if (moveIdx % 2 == 1) {
+					moveIdx++;
+					moveIdx %= 4;
+				}
+				return true;
+			}
+			else {
+				moveIdx++;
+			}
+		}
+		return false;
 	}
 
 	void draw(SDL_Window* window, SDL_Surface* winSurface) {
@@ -187,6 +314,11 @@ int main(int argc, char** args) {
 				break;
 			}
 		}
+		aliens.move();
+		SDL_Delay(500);
+		clearWindow(window, winSurface);
+		aliens.draw(window, winSurface);
+		player.draw(window, winSurface);
 	}
 
 	system("pause");
