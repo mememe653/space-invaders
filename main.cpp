@@ -55,7 +55,6 @@ public:
 		dest.x = this->x;
 		dest.y = this->y;
 		SDL_BlitSurface(this->currentImg, nullptr, winSurface, &dest);
-		SDL_UpdateWindowSurface(window);
 	}
 };
 
@@ -241,7 +240,6 @@ public:
 		dest.x = this->x;
 		dest.y = this->y;
 		SDL_BlitSurface(this->img, nullptr, winSurface, &dest);
-		SDL_UpdateWindowSurface(window);
 	}
 };
 
@@ -295,6 +293,7 @@ int main(int argc, char** args) {
 	player.draw(window, winSurface);
 
 	SDL_Event ev;
+	unsigned int startTime = SDL_GetTicks();
 	while (true) {
 		while (SDL_PollEvent(&ev)) {
 			switch (ev.type) {
@@ -304,21 +303,29 @@ int main(int argc, char** args) {
 					player.moveLeft();
 					clearWindow(window, winSurface);
 					player.draw(window, winSurface);
+					aliens.draw(window, winSurface);
+					SDL_UpdateWindowSurface(window);
 					break;
 				case SDLK_RIGHT:
 					player.moveRight();
 					clearWindow(window, winSurface);
 					player.draw(window, winSurface);
+					aliens.draw(window, winSurface);
+					SDL_UpdateWindowSurface(window);
 					break;
 				}
 				break;
 			}
 		}
-		aliens.move();
-		SDL_Delay(500);
-		clearWindow(window, winSurface);
-		aliens.draw(window, winSurface);
-		player.draw(window, winSurface);
+		unsigned int endTime = SDL_GetTicks();
+		if (endTime - startTime > 500) {
+			startTime = endTime;
+			aliens.move();
+			clearWindow(window, winSurface);
+			aliens.draw(window, winSurface);
+			player.draw(window, winSurface);
+			SDL_UpdateWindowSurface(window);
+		}
 	}
 
 	system("pause");
