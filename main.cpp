@@ -13,6 +13,32 @@ enum Direction {
 };
 
 
+class Bullet {
+private:
+	SDL_Surface* img;
+	const int w = 128;
+	const int h = 128;
+	const int x;
+	int y;
+
+public:
+	Bullet(SDL_Surface* img, int x) : img(img), x(x), y(SCREEN_HEIGHT - h) {
+
+	}
+
+	void move(int moveAmount) {
+		this->y += moveAmount;
+	}
+
+	void draw(SDL_Surface* winSurface) {
+		SDL_Rect dest;
+		dest.x = this->x;
+		dest.y = this->y;
+		SDL_BlitSurface(this->img, nullptr, winSurface, &dest);
+	}
+};
+
+
 class Alien {
 private:
 	SDL_Surface* img1;
@@ -218,6 +244,7 @@ private:
 	int x, y;
 	SDL_Surface* img;
 	const int moveAmount = 20;
+	Bullet* bullet = nullptr;
 
 public:
 	Player() : x(SCREEN_WIDTH / 2), y(SCREEN_HEIGHT - h) {
@@ -225,6 +252,14 @@ public:
 		if (!img) {
 			std::cout << "Failed to load resources\\player.png: " << IMG_GetError() << std::endl;
 		}
+	}
+
+	Bullet* shoot() {
+		if (this->bullet == nullptr) {
+			SDL_Surface* img = IMG_Load("resources\\player_bullet.png");
+			this->bullet = new Bullet(img, this->x);
+		}
+		return this->bullet;
 	}
 
 	void moveRight() {
@@ -292,8 +327,11 @@ int main(int argc, char** args) {
 	Player player;
 	player.draw(window, winSurface);
 
+	Bullet* bullet = nullptr;
+
 	SDL_Event ev;
 	unsigned int startTime = SDL_GetTicks();
+	unsigned int startTime1 = startTime;
 	while (true) {
 		while (SDL_PollEvent(&ev)) {
 			switch (ev.type) {
@@ -313,17 +351,32 @@ int main(int argc, char** args) {
 					aliens.draw(window, winSurface);
 					SDL_UpdateWindowSurface(window);
 					break;
+				case SDLK_SPACE:
+					bullet = player.shoot();
+					break;
 				}
 				break;
 			}
 		}
 		unsigned int endTime = SDL_GetTicks();
+		if (bullet && (endTime - startTime1 > 50)) {
+			startTime1 = endTime;
+			bullet->move(-20);
+			clearWindow(window, winSurface);
+			bullet->draw(winSurface);
+			aliens.draw(window, winSurface);
+			player.draw(window, winSurface);
+			SDL_UpdateWindowSurface(window);
+		}
 		if (endTime - startTime > 500) {
 			startTime = endTime;
 			aliens.move();
 			clearWindow(window, winSurface);
 			aliens.draw(window, winSurface);
 			player.draw(window, winSurface);
+			if (bullet) {
+				bullet->draw(winSurface);
+			}
 			SDL_UpdateWindowSurface(window);
 		}
 	}
