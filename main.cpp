@@ -13,6 +13,11 @@ enum Direction {
 };
 
 
+struct BoxCoords {
+	int x, y, w, h;
+};
+
+
 class Bullet {
 private:
 	SDL_Surface* img;
@@ -20,15 +25,39 @@ private:
 	const int h = 128;
 	const int x;
 	int y;
+	BoxCoords dynamicBox;
 
 public:
 	Bullet(SDL_Surface* img, int x) : img(img), x(x), y(SCREEN_HEIGHT - h) {
+		dynamicBox.x = x + w / 2;
+		dynamicBox.y = y + h / 4;
+		dynamicBox.w = 8;
+		dynamicBox.h = 24;
+	}
 
+	BoxCoords& getDynamicBox() {
+		return this->dynamicBox;
 	}
 
 	void move(int moveAmount) {
 		this->y += moveAmount;
+		dynamicBox.y += moveAmount;
 	}
+
+	/*
+	void attemptDestroy(std::vector<Alien>& aliens) {
+		BoxCoords& bulletDynamicBox = this->dynamicBox;
+		for (Alien& alien : aliens) {
+			BoxCoords& alienDynamicBox = alien.getDynamicBox();
+			if ((bulletDynamicBox.x > alienDynamicBox.x)
+				&& (bulletDynamicBox.x < (alienDynamicBox.x + alienDynamicBox.w))
+				&& (bulletDynamicBox.y > alienDynamicBox.y)
+				&& (bulletDynamicBox.y < (alienDynamicBox.y + alienDynamicBox.h))) {
+				alien.setDestroyed();
+			}
+		}
+	}
+	*/
 
 	void draw(SDL_Surface* winSurface) {
 		SDL_Rect dest;
@@ -43,37 +72,67 @@ class Alien {
 private:
 	SDL_Surface* img1;
 	SDL_Surface* img2;
+	SDL_Surface* imgDestroyed;
 	SDL_Surface* currentImg;
+	BoxCoords dynamicBox;
+	bool destroyed = false;
 
 public:
 	int x, y;
 	static const int w = 128;
 	static const int h = 96;
-	static const int moveAmount = 20;
 
 public:
 	Alien(SDL_Surface* img1, SDL_Surface* img2, int x, int y)
 		: img1(img1), img2(img2), x(x), y(y) {
+		dynamicBox.x = x + w / 5;
+		dynamicBox.y = y + h / 5;
+		dynamicBox.w = 3 * w / 5;
+		dynamicBox.h = 3 * h / 5;
+		this->imgDestroyed = IMG_Load("resources\\alien_explosion.png");
 		this->currentImg = img1;
 	}
 
+	BoxCoords& getDynamicBox() {
+		return this->dynamicBox;
+	}
+
+	void setDestroyed() {
+		this->destroyed = true;
+		toggleImage();
+	}
+
 	void toggleImage() {
-		this->currentImg = currentImg == img1 ? img2 : img1;
+		if (this->destroyed) {
+			this->currentImg = imgDestroyed;
+		}
+		else {
+			this->currentImg = currentImg == img1 ? img2 : img1;
+		}
 	}
 
-	void moveRight() {
+	void moveRight(int moveAmount) {
+		dynamicBox.x += moveAmount;
 		this->x += moveAmount;
-		this->currentImg = currentImg == img1 ? img2 : img1;
+		toggleImage();
 	}
 
-	void moveLeft() {
+	void moveLeft(int moveAmount) {
+		dynamicBox.x -= moveAmount;
 		this->x -= moveAmount;
-		this->currentImg = currentImg == img1 ? img2 : img1;
+		toggleImage();
 	}
 
-	void moveDown() {
+	void moveDown(int moveAmount) {
+		dynamicBox.y += moveAmount;
 		this->y += moveAmount;
-		this->currentImg = currentImg == img1 ? img2 : img1;
+		toggleImage();
+	}
+
+	void moveUp(int moveAmount) {
+		dynamicBox.y -= moveAmount;
+		this->y -= moveAmount;
+		toggleImage();
 	}
 
 	void draw(SDL_Window* window, SDL_Surface* winSurface) {
@@ -108,15 +167,22 @@ public:
 		}
 		else {
 			this->moveAmount = moveAmount;
+			alien->moveLeft(moveAmount);
+			/*
+			this->moveAmount = moveAmount;
 			alien->x -= moveAmount;
 			alien->toggleImage();
+			*/
 			return true;
 		}
 	}
 
 	virtual void undoMove() override {
+		alien->moveRight(this->moveAmount);
+		/*
 		alien->x += this->moveAmount;
 		alien->toggleImage();
+		*/
 	}
 };
 
@@ -129,15 +195,21 @@ public:
 		}
 		else {
 			this->moveAmount = moveAmount;
+			alien->moveRight(moveAmount);
+			/*
 			alien->x += moveAmount;
 			alien->toggleImage();
+			*/
 			return true;
 		}
 	}
 
 	virtual void undoMove() override {
+		alien->moveLeft(this->moveAmount);
+		/*
 		alien->x -= this->moveAmount;
 		alien->toggleImage();
+		*/
 	}
 };
 
@@ -150,15 +222,21 @@ public:
 		}
 		else {
 			this->moveAmount = moveAmount;
+			alien->moveDown(moveAmount);
+			/*
 			alien->y += moveAmount;
 			alien->toggleImage();
+			*/
 			return true;
 		}
 	}
 
 	virtual void undoMove() override {
+		alien->moveUp(this->moveAmount);
+		/*
 		alien->y -= this->moveAmount;
 		alien->toggleImage();
+		*/
 	}
 };
 
@@ -200,13 +278,17 @@ public:
 		}
 	}
 
+	std::vector<Alien>& getAliens() {
+		return this->aliens;
+	}
+
 	bool move() {
 		for (int i = 0; i < 2; i++) {
 			bool moveSuccess;
 			MoveDirection* mover = movers[moveIdx];
 			for (int i = 0; i < aliens.size(); i++) {
 				mover->setAlien(&aliens[i]);
-				moveSuccess = mover->move(Alien::moveAmount);
+				moveSuccess = mover->move(20);
 				if (!moveSuccess) {
 					for (int j = 0; j < i; j++) {
 						mover->setAlien(&aliens[j]);
@@ -262,6 +344,15 @@ public:
 		return this->bullet;
 	}
 
+	Bullet* getBullet() {
+		return this->bullet;
+	}
+
+	void destroyBullet() {
+		delete bullet;
+		this->bullet = nullptr;
+	}
+
 	void moveRight() {
 		x += moveAmount;
 	}
@@ -278,6 +369,24 @@ public:
 	}
 };
 
+
+bool attemptDestroyAliens(Player& player, Aliens& aliensObj) {
+	Bullet* bullet = player.getBullet();
+	std::vector<Alien>& aliens = aliensObj.getAliens();
+	BoxCoords& bulletDynamicBox = bullet->getDynamicBox();
+	for (int i = 0; i < aliens.size(); i++) {
+		BoxCoords& alienDynamicBox = aliens[i].getDynamicBox();
+		if ((bulletDynamicBox.x > alienDynamicBox.x)
+			&& (bulletDynamicBox.x < (alienDynamicBox.x + alienDynamicBox.w))
+			&& (bulletDynamicBox.y > alienDynamicBox.y)
+			&& (bulletDynamicBox.y < (alienDynamicBox.y + alienDynamicBox.h))) {
+			aliens.erase(aliens.begin() + i);
+			player.destroyBullet();
+			return true;
+		}
+	}
+	return false;
+}
 
 void clearWindow(SDL_Window* window, SDL_Surface* winSurface) {
 	SDL_FillRect(winSurface, nullptr, SDL_MapRGB(winSurface->format, 0, 0, 0));
@@ -327,7 +436,7 @@ int main(int argc, char** args) {
 	Player player;
 	player.draw(window, winSurface);
 
-	Bullet* bullet = nullptr;
+	//Bullet* bullet = nullptr;
 
 	SDL_Event ev;
 	unsigned int startTime = SDL_GetTicks();
@@ -352,18 +461,35 @@ int main(int argc, char** args) {
 					SDL_UpdateWindowSurface(window);
 					break;
 				case SDLK_SPACE:
-					bullet = player.shoot();
+					player.shoot();
 					break;
 				}
 				break;
 			}
 		}
+
+		if (player.getBullet()) {
+			BoxCoords& bulletDynamicBox = player.getBullet()->getDynamicBox();
+			if ((bulletDynamicBox.y + bulletDynamicBox.h) < 0) {
+				player.destroyBullet();
+			}
+		}
+
+		if (player.getBullet()) {
+			if (attemptDestroyAliens(player, aliens)) {
+				clearWindow(window, winSurface);
+				aliens.draw(window, winSurface);
+				player.draw(window, winSurface);
+				SDL_UpdateWindowSurface(window);
+			}
+		}
+
 		unsigned int endTime = SDL_GetTicks();
-		if (bullet && (endTime - startTime1 > 50)) {
+		if (player.getBullet() && (endTime - startTime1 > 50)) {
 			startTime1 = endTime;
-			bullet->move(-20);
+			player.getBullet()->move(-20);
 			clearWindow(window, winSurface);
-			bullet->draw(winSurface);
+			player.getBullet()->draw(winSurface);
 			aliens.draw(window, winSurface);
 			player.draw(window, winSurface);
 			SDL_UpdateWindowSurface(window);
@@ -374,8 +500,8 @@ int main(int argc, char** args) {
 			clearWindow(window, winSurface);
 			aliens.draw(window, winSurface);
 			player.draw(window, winSurface);
-			if (bullet) {
-				bullet->draw(winSurface);
+			if (player.getBullet()) {
+				player.getBullet()->draw(winSurface);
 			}
 			SDL_UpdateWindowSurface(window);
 		}
