@@ -343,10 +343,12 @@ public:
 	}
 
 	void moveRight() {
+		this->dynamicBox.x += moveAmount;
 		x += moveAmount;
 	}
 
 	void moveLeft() {
+		this->dynamicBox.x -= moveAmount;
 		x -= moveAmount;
 	}
 
@@ -379,7 +381,6 @@ bool attemptDestroyAliens(Player& player, Aliens& aliensObj) {
 
 void clearWindow(SDL_Window* window, SDL_Surface* winSurface) {
 	SDL_FillRect(winSurface, nullptr, SDL_MapRGB(winSurface->format, 0, 0, 0));
-	SDL_UpdateWindowSurface(window);
 }
 
 int main(int argc, char** args) {
